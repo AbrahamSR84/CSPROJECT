@@ -1,30 +1,47 @@
+# Código Python para comunicación con ESP32 a través de puerto serial
+# Librerias
+import time
 import serial
 import json
 
-ser = serial.Serial('COM4', 115200)
+ser = serial.Serial('COM4', 115200) # Declarar el puerto que se esta utilizando
+time.sleep(2)  # esperar inicio ESP32
 
 lista_uid = []
 
+# Solicitar lista inicial de tarjetas al ESP32
+ser.write(b"LIST\n")
+
 print("Esperando tarjetas RFID...")
-
+# Bucle principal para leer datos del ESP32
 while True:
-    try:
-        linea = ser.readline().decode().strip()
+    try: 
+        linea = ser.readline().decode(errors="ignore").strip() # Leer línea del puerto serial y decodificarla
+        if not linea:
+            continue
 
-        if linea:
-            data = json.loads(linea)
-            uid = data["uid"]
+        print("ESP32:", linea)
 
-            print("Tarjeta RFID detectada:", uid)
+        try:
+            data = json.loads(linea) # Intentar decodificar la línea como JSON
 
-            if uid not in lista_uid:
-                lista_uid.append(uid)
+            if isinstance(data, dict) and "uid" in data: # Nueva tarjeta recibida del ESP32
+                uid = data["uid"]
+                if uid not in lista_uid: # Verificar si el UID ya está en la lista
+                    lista_uid.append(uid)
+                    with open("tarjetas.txt", "a") as f: # Abrir el archivo en modo append para agregar el nuevo UID
+                        f.write(uid + "\n") # Escribir el nuevo UID en el archivo
+                    mensaje = json.dumps(lista_uid, separators=(',', ':')) # Convertir la lista de UIDs a JSON sin espacios
+                    ser.write((mensaje + "\n").encode()) 
+                    print("JSON enviado al ESP32:", mensaje)
 
-                # guardar sin borrar el archivo
-                with open("tarjetas.txt", "a") as archivo:
-                    archivo.write(uid + "\n")
+            elif isinstance(data, list):
+                # Lista completa recibida del ESP32
+                lista_uid = data
+                print("Lista completa actualizada:", lista_uid)
 
-            print("Lista de tarjetas RFID:", lista_uid)
+        except json.JSONDecodeError: # Si la línea no es un JSON válido, simplemente se ignora
+            pass
 
-    except:
-        pass
+    except Exception as e: # Capturar cualquier otra excepción y mostrar el error
+        print("Error:", e)
