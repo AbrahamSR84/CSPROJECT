@@ -1,28 +1,40 @@
-# Librería para comunicarse por puerto serial con el ESP32
 import serial
-# Librería para interpretar datos en formato JSON
 import json
-# Conexión al puerto donde está el ESP32 (velocidad 115200)
+
+# Conexión con el ESP32 (cambia COM4 si tu puerto es diferente)
 ser = serial.Serial('COM4', 115200)
-# Mensaje inicial en consola
+
+# Lista donde se guardarán los UID leídos
+lista_uid = []
+
 print("Esperando tarjetas RFID...")
-# Bucle infinito para leer continuamente el puerto serial
+
 while True:
     try:
-        # Lee una línea enviada por el ESP32
+        # Leer datos enviados por el ESP32
         linea = ser.readline().decode().strip()
 
-        # Verifica que se haya recibido información
         if linea:
-            # Convierte el JSON recibido a un diccionario
+            # Convertir el JSON recibido a diccionario
             data = json.loads(linea)
 
-            # Obtiene el UID de la tarjeta
+            # Obtener UID de la tarjeta
             uid = data["uid"]
 
-            # Muestra el UID en consola
-            print("Tarjeta RFID detectada:", uid)
+            print("Tarjeta detectada:", uid)
+
+            # Verificar que el UID no esté ya en la lista
+            if uid not in lista_uid:
+                lista_uid.append(uid)
+
+                # Guardar la lista en un archivo
+                with open("tarjetas.txt", "w") as archivo:
+                    for tarjeta in lista_uid:
+                        archivo.write(tarjeta + "\n")
+
+            # Mostrar lista actual
+            print("Lista de tarjetas:", lista_uid)
 
     except:
-        # Ignora errores y sigue ejecutando
+        # Ignorar errores y continuar
         pass
